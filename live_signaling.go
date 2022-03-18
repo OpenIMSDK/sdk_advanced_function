@@ -28,6 +28,7 @@ type LiveSignaling struct {
 func NewLiveSignaling(ws *ws.Ws, listener open_im_sdk_callback.OnSignalingListener, loginUserID string, platformID int32, db *db.DataBase) *LiveSignaling {
 	if ws == nil || listener == nil {
 		log.Error("", "ws or listener is nil")
+		return nil
 	}
 	return &LiveSignaling{Ws: ws, listener: listener, loginUserID: loginUserID, platformID: platformID, DataBase: db}
 }
@@ -123,36 +124,33 @@ func (s *LiveSignaling) DoNotification(msg *api.MsgData, conversationCh chan com
 	switch payload := resp.Payload.(type) {
 	case *api.SignalReq_Accept:
 		log.Info(operationID, "signaling response ", payload.Accept.String())
-		if payload.Accept.Invitation.InviterUserID == s.loginUserID {
-			if payload.Accept.Invitation.PlatformID == s.platformID {
-				var wsResp ws.GeneralWsResp
-				wsResp.ReqIdentifier = constant.WSSendSignalMsg
-				wsResp.Data = msg.Content
-				wsResp.MsgIncr = s.loginUserID + payload.Accept.OpUserID + payload.Accept.Invitation.RoomID
-				log.Info(operationID, "search msgIncr: ", wsResp.MsgIncr)
-				s.DoWSSignal(wsResp)
-			}
-		} else {
-			if payload.Accept.OpUserPlatformID != s.platformID && payload.Accept.OpUserID == s.loginUserID {
-				s.listener.OnInviteeAcceptedByOtherDevice(utils.StructToJsonString(payload.Accept))
-			}
+		if payload.Accept.Invitation.InviterUserID == s.loginUserID && payload.Accept.Invitation.PlatformID == s.platformID {
+			var wsResp ws.GeneralWsResp
+			wsResp.ReqIdentifier = constant.WSSendSignalMsg
+			wsResp.Data = msg.Content
+			wsResp.MsgIncr = s.loginUserID + payload.Accept.OpUserID + payload.Accept.Invitation.RoomID
+			log.Info(operationID, "search msgIncr: ", wsResp.MsgIncr)
+			s.DoWSSignal(wsResp)
+			return
 		}
-
+		if payload.Accept.OpUserPlatformID != s.platformID && payload.Accept.OpUserID == s.loginUserID {
+			s.listener.OnInviteeAcceptedByOtherDevice(utils.StructToJsonString(payload.Accept))
+			return
+		}
 	case *api.SignalReq_Reject:
 		log.Info(operationID, "signaling response ", payload.Reject.String())
-		if payload.Reject.Invitation.InviterUserID == s.loginUserID {
-			if payload.Reject.Invitation.PlatformID == s.platformID {
-				var wsResp ws.GeneralWsResp
-				wsResp.ReqIdentifier = constant.WSSendSignalMsg
-				wsResp.Data = msg.Content
-				wsResp.MsgIncr = s.loginUserID + payload.Reject.OpUserID + payload.Reject.Invitation.RoomID
-				log.Info(operationID, "search msgIncr: ", wsResp.MsgIncr)
-				s.DoWSSignal(wsResp)
-			}
-		} else {
-			if payload.Reject.OpUserPlatformID != s.platformID && payload.Reject.OpUserID == s.loginUserID {
-				s.listener.OnInviteeRejectedByOtherDevice(utils.StructToJsonString(payload.Reject))
-			}
+		if payload.Reject.Invitation.InviterUserID == s.loginUserID && payload.Reject.Invitation.PlatformID == s.platformID {
+			var wsResp ws.GeneralWsResp
+			wsResp.ReqIdentifier = constant.WSSendSignalMsg
+			wsResp.Data = msg.Content
+			wsResp.MsgIncr = s.loginUserID + payload.Reject.OpUserID + payload.Reject.Invitation.RoomID
+			log.Info(operationID, "search msgIncr: ", wsResp.MsgIncr)
+			s.DoWSSignal(wsResp)
+			return
+		}
+		if payload.Reject.OpUserPlatformID != s.platformID && payload.Reject.OpUserID == s.loginUserID {
+			s.listener.OnInviteeRejectedByOtherDevice(utils.StructToJsonString(payload.Reject))
+			return
 		}
 
 	case *api.SignalReq_HungUp:
