@@ -63,7 +63,6 @@ func (s *LiveSignaling) waitPush(req *api.SignalReq, operationID string) {
 		}(v)
 	}
 }
-
 func (s *LiveSignaling) doSignalPush(req *api.SignalReq, operationID string) {
 	switch payload := req.Payload.(type) {
 	//case *api.SignalReq_Invite:
