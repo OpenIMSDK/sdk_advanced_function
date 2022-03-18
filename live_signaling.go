@@ -145,7 +145,7 @@ func (s *LiveSignaling) DoNotification(msg *api.MsgData, conversationCh chan com
 				s.DoWSSignal(wsResp)
 			}
 		} else {
-			if payload.Reject.OpUserPlatformID != s.platformID && payload.Reject.OpUserID {
+			if payload.Reject.OpUserPlatformID != s.platformID && payload.Reject.OpUserID == s.loginUserID {
 				s.listener.OnInviteeRejectedByOtherDevice(utils.StructToJsonString(payload.Reject))
 			}
 		}
