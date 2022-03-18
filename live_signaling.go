@@ -22,6 +22,7 @@ type LiveSignaling struct {
 	loginUserID string
 	*db.DataBase
 	platformID int32
+	isCanceled bool
 }
 
 func NewLiveSignaling(ws *ws.Ws, listener open_im_sdk_callback.OnSignalingListener, loginUserID string, platformID int32, db *db.DataBase) *LiveSignaling {
@@ -48,9 +49,13 @@ func (s *LiveSignaling) waitPush(req *api.SignalReq, operationID string) {
 					log.Error(operationID, "wait push timeout ", err.Error(), invt.InviterUserID, v, invt.RoomID, invt.Timeout)
 					switch payload := req.Payload.(type) {
 					case *api.SignalReq_Invite:
-						s.listener.OnInvitationTimeout(utils.StructToJsonString(payload.Invite))
+						if !s.isCanceled {
+							s.listener.OnInvitationTimeout(utils.StructToJsonString(payload.Invite))
+						}
 					case *api.SignalReq_InviteInGroup:
-						s.listener.OnInvitationTimeout(utils.StructToJsonString(payload.InviteInGroup))
+						if !s.isCanceled {
+							s.listener.OnInvitationTimeout(utils.StructToJsonString(payload.InviteInGroup))
+						}
 					}
 
 				} else {
@@ -195,12 +200,15 @@ func (s *LiveSignaling) handleSignaling(req *api.SignalReq, callback open_im_sdk
 		log.Info(operationID, "signaling response ", payload.HungUp.String())
 		callback.OnSuccess(utils.StructToJsonString(sdk_params_callback.HungUpCallback(payload.HungUp)))
 	case *api.SignalResp_Cancel:
+		s.isCanceled = true
 		log.Info(operationID, "signaling response ", payload.Cancel.String())
 		callback.OnSuccess(utils.StructToJsonString(sdk_params_callback.CancelCallback(payload.Cancel)))
 	case *api.SignalResp_Invite:
+		s.isCanceled = false
 		log.Info(operationID, "signaling response ", payload.Invite.String())
 		callback.OnSuccess(utils.StructToJsonString(sdk_params_callback.InviteCallback(payload.Invite)))
 	case *api.SignalResp_InviteInGroup:
+		s.isCanceled = false
 		log.Info(operationID, "signaling response ", payload.InviteInGroup.String())
 		callback.OnSuccess(utils.StructToJsonString(sdk_params_callback.InviteInGroupCallback(payload.InviteInGroup)))
 	default:
