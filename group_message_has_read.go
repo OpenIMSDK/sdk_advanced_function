@@ -3,8 +3,8 @@ package sdk_advanced_function
 import (
 	"encoding/json"
 	"errors"
+	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/copier"
-	conv "open_im_sdk/internal/conversation_msg"
 	ws "open_im_sdk/internal/interaction"
 	"open_im_sdk/open_im_sdk_callback"
 	"open_im_sdk/pkg/common"
@@ -22,14 +22,15 @@ const MarkGroupMessageAsReadCallback = constant.SuccessCallbackDefault
 
 type ChatHasRead struct {
 	*ws.Ws
-	conversation *conv.Conversation
-	loginUserID  string
+	loginUserID string
 	*db.DataBase
-	platformID int32
+	platformID  int32
+	ch          chan common.Cmd2Value
+	msgListener open_im_sdk_callback.OnAdvancedMsgListener
 }
 
-func NewChatHasRead(ws *ws.Ws, conversation *conv.Conversation, loginUserID string, dataBase *db.DataBase, platformID int32) *ChatHasRead {
-	return &ChatHasRead{Ws: ws, conversation: conversation, loginUserID: loginUserID, DataBase: dataBase, platformID: platformID}
+func NewChatHasRead(ws *ws.Ws, loginUserID string, dataBase *db.DataBase, platformID int32, ch chan common.Cmd2Value, msgListener open_im_sdk_callback.OnAdvancedMsgListener) *ChatHasRead {
+	return &ChatHasRead{Ws: ws, loginUserID: loginUserID, DataBase: dataBase, platformID: platformID, ch: ch, msgListener: msgListener}
 }
 
 func (c *ChatHasRead) MarkGroupMessageAsRead(callback open_im_sdk_callback.Base, groupID string, msgIDList, operationID string) {
@@ -42,8 +43,8 @@ func (c *ChatHasRead) MarkGroupMessageAsRead(callback open_im_sdk_callback.Base,
 		common.JsonUnmarshalCallback(msgIDList, &unmarshalParams, callback, operationID)
 		if len(unmarshalParams) == 0 {
 			conversationID := utils.GetConversationIDBySessionType(groupID, constant.GroupChatType)
-			_ = common.TriggerCmdUpdateConversation(common.UpdateConNode{ConID: conversationID, Action: constant.UnreadCountSetZero}, c.conversation.GetCh())
-			_ = common.TriggerCmdUpdateConversation(common.UpdateConNode{ConID: conversationID, Action: constant.ConChange, Args: []string{conversationID}}, c.conversation.GetCh())
+			_ = common.TriggerCmdUpdateConversation(common.UpdateConNode{ConID: conversationID, Action: constant.UnreadCountSetZero}, c.ch)
+			_ = common.TriggerCmdUpdateConversation(common.UpdateConNode{ConID: conversationID, Action: constant.ConChange, Args: []string{conversationID}}, c.ch)
 			callback.OnSuccess(MarkGroupMessageAsReadCallback)
 			return
 		}
@@ -81,7 +82,7 @@ func (c *ChatHasRead) markGroupMessageAsRead(callback open_im_sdk_callback.Base,
 		utils.SetSwitchFromOptions(options, constant.IsUnreadCount, false)
 		utils.SetSwitchFromOptions(options, constant.IsOfflinePush, false)
 		//If there is an error, the coroutine ends, so judgment is not  required
-		resp, _ := c.conversation.InternalSendMessage(callback, &s, userID, "", operationID, &server_api_params.OfflinePushInfo{}, false, options)
+		resp, _ := c.internalSendMessage(callback, &s, userID, "", operationID, &server_api_params.OfflinePushInfo{}, false, options)
 		s.ServerMsgID = resp.ServerMsgID
 		s.SendTime = resp.SendTime
 		s.Status = constant.MsgStatusFiltered
@@ -144,7 +145,7 @@ func (c *ChatHasRead) DoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStru
 	}
 	if len(groupMessageReceiptResp) > 0 {
 		log.Info("internal", "OnRecvGroupReadReceipt: ", utils.StructToJsonString(groupMessageReceiptResp))
-		c.conversation.MsgListener().OnRecvGroupReadReceipt(utils.StructToJsonString(groupMessageReceiptResp))
+		c.msgListener.OnRecvGroupReadReceipt(utils.StructToJsonString(groupMessageReceiptResp))
 	}
 }
 
@@ -166,6 +167,51 @@ func (c *ChatHasRead) initBasicInfo(message *sdk_struct.MsgStruct, msgFrom, cont
 	message.MsgFrom = msgFrom
 	message.ContentType = contentType
 	message.SenderPlatformID = c.platformID
+}
+func (c *ChatHasRead) internalSendMessage(callback open_im_sdk_callback.Base, s *sdk_struct.MsgStruct, recvID, groupID, operationID string, p *server_api_params.OfflinePushInfo, onlineUserOnly bool, options map[string]bool) (*server_api_params.UserSendMsgResp, error) {
+	if recvID == "" && groupID == "" {
+		common.CheckAnyErrCallback(callback, 201, errors.New("recvID && groupID not be allowed"), operationID)
+	}
+	if recvID == "" {
+		s.SessionType = constant.GroupChatType
+		s.GroupID = groupID
+		groupMemberUidList, err := c.GetGroupMemberUIDListByGroupID(groupID)
+		common.CheckAnyErrCallback(callback, 202, err, operationID)
+		if !utils.IsContain(s.SendID, groupMemberUidList) {
+			common.CheckAnyErrCallback(callback, 208, errors.New("you not exist in this group"), operationID)
+		}
+
+	} else {
+		s.SessionType = constant.SingleChatType
+		s.RecvID = recvID
+	}
+
+	if onlineUserOnly {
+		options[constant.IsHistory] = false
+		options[constant.IsPersistent] = false
+		options[constant.IsOfflinePush] = false
+		options[constant.IsSenderSync] = false
+	}
+
+	var wsMsgData server_api_params.MsgData
+	copier.Copy(&wsMsgData, s)
+	wsMsgData.Content = []byte(s.Content)
+	wsMsgData.CreateTime = s.CreateTime
+	wsMsgData.Options = options
+	wsMsgData.OfflinePushInfo = p
+	timeout := 300
+	retryTimes := 0
+	g, err := c.SendReqWaitResp(&wsMsgData, constant.WSSendMsg, timeout, retryTimes, c.loginUserID, operationID)
+	switch e := err.(type) {
+	case *constant.ErrInfo:
+		common.CheckAnyErrCallback(callback, e.ErrCode, e, operationID)
+	default:
+		common.CheckAnyErrCallback(callback, 301, err, operationID)
+	}
+	var sendMsgResp server_api_params.UserSendMsgResp
+	_ = proto.Unmarshal(g.Data, &sendMsgResp)
+	return &sendMsgResp, nil
+
 }
 func msgStructToLocalChatLog(dst *db.LocalChatLog, src *sdk_struct.MsgStruct) {
 	copier.Copy(dst, src)
