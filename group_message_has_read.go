@@ -98,7 +98,7 @@ func (c *ChatHasRead) markGroupMessageAsRead(callback open_im_sdk_callback.Base,
 }
 
 func (c *ChatHasRead) DoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStruct) {
-	var groupMessageReceiptResp []*sdk_struct.GroupMessageReceipt
+	var groupMessageReceiptResp []*sdk_struct.MessageReceipt
 	var msgIdList []string
 	for _, rd := range groupMsgReadList {
 		err := json.Unmarshal([]byte(rd.Content), &msgIdList)
@@ -131,7 +131,7 @@ func (c *ChatHasRead) DoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStru
 			msgIdListStatusOK = append(msgIdListStatusOK, v)
 		}
 		if len(msgIdListStatusOK) > 0 {
-			msgRt := new(sdk_struct.GroupMessageReceipt)
+			msgRt := new(sdk_struct.MessageReceipt)
 			msgRt.ContentType = rd.ContentType
 			msgRt.MsgFrom = rd.MsgFrom
 			msgRt.ReadTime = rd.SendTime
