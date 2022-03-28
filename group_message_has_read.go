@@ -79,6 +79,7 @@ func (c *ChatHasRead) markGroupMessageAsRead(callback open_im_sdk_callback.Base,
 		s.Content = utils.StructToJsonString(list)
 		options := make(map[string]bool, 5)
 		utils.SetSwitchFromOptions(options, constant.IsConversationUpdate, false)
+		utils.SetSwitchFromOptions(options, constant.IsSenderConversationUpdate, false)
 		utils.SetSwitchFromOptions(options, constant.IsUnreadCount, false)
 		utils.SetSwitchFromOptions(options, constant.IsOfflinePush, false)
 		//If there is an error, the coroutine ends, so judgment is not  required
