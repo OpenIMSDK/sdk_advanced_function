@@ -119,8 +119,8 @@ func (c *ChatHasRead) DoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStru
 				}
 				attachInfo := sdk_struct.AttachedInfoElem{}
 				_ = utils.JsonStringToStruct(m.AttachedInfo, &attachInfo)
-				attachInfo.GroupHasReadInfo.HasReadCount++
-				attachInfo.GroupHasReadInfo.HasReadUserIDList = append(attachInfo.GroupHasReadInfo.HasReadUserIDList, rd.SendID)
+				attachInfo.GroupHasReadInfo.HasReadUserIDList = utils.RemoveRepeatedStringInList(append(attachInfo.GroupHasReadInfo.HasReadUserIDList, rd.SendID))
+				attachInfo.GroupHasReadInfo.HasReadCount = int32(len(attachInfo.GroupHasReadInfo.HasReadUserIDList))
 				t.AttachedInfo = utils.StructToJsonString(attachInfo)
 			}
 			t.ClientMsgID = v
