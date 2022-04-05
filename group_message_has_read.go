@@ -94,7 +94,7 @@ func (c *ChatHasRead) markGroupMessageAsRead(callback open_im_sdk_callback.Base,
 		}
 		err2 := c.UpdateMessageHasRead(userID, list, constant.GroupChatType)
 		if err2 != nil {
-			log.Error(operationID, "update message has read error", list, userID, err2.Error())
+			log.Error(operationID, "update message has read err", list, userID, err2.Error())
 		}
 	}
 }
