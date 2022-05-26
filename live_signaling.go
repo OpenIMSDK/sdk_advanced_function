@@ -82,7 +82,7 @@ func (s *LiveSignaling) doSignalPush(req *api.SignalReq, operationID string) {
 		s.listener.OnInviteeRejected(utils.StructToJsonString(payload.Reject))
 	case *api.SignalReq_HungUp:
 		log.Info(operationID, "recv signal push HungUp ", payload.HungUp.String())
-		s.listener.OnInviteeRejected(utils.StructToJsonString(payload.HungUp))
+		s.listener.OnHangUp(utils.StructToJsonString(payload.HungUp))
 	//case *api.SignalReq_Cancel:
 	//	log.Info(operationID, "recv signal push ", payload.Cancel.String())
 	//	s.listener.OnInvitationCancelled(utils.StructToJsonString(payload.Cancel))
