@@ -80,9 +80,9 @@ func (s *LiveSignaling) doSignalPush(req *api.SignalReq, operationID string) {
 	case *api.SignalReq_Reject:
 		log.Info(operationID, "recv signal push Reject ", payload.Reject.String())
 		s.listener.OnInviteeRejected(utils.StructToJsonString(payload.Reject))
-	case *api.SignalReq_HungUp:
-		log.Info(operationID, "recv signal push HungUp ", payload.HungUp.String())
-		s.listener.OnHangUp(utils.StructToJsonString(payload.HungUp))
+	//case *api.SignalReq_HungUp:
+	//	log.Info(operationID, "recv signal push HungUp ", payload.HungUp.String())
+	//	s.listener.OnHangUp(utils.StructToJsonString(payload.HungUp))
 	//case *api.SignalReq_Cancel:
 	//	log.Info(operationID, "recv signal push ", payload.Cancel.String())
 	//	s.listener.OnInvitationCancelled(utils.StructToJsonString(payload.Cancel))
@@ -157,8 +157,10 @@ func (s *LiveSignaling) DoNotification(msg *api.MsgData, conversationCh chan com
 		}
 
 	case *api.SignalReq_HungUp:
-		log.Info(operationID, "signaling response ", payload.HungUp.String())
-
+		log.Info(operationID, "signaling response HungUp", payload.HungUp.String())
+		if s.loginUserID != payload.HungUp.OpUserID {
+			s.listener.OnHangUp(utils.StructToJsonString(payload.HungUp))
+		}
 	case *api.SignalReq_Cancel:
 		log.Info(operationID, "signaling response ", payload.Cancel.String())
 		if utils.IsContain(s.loginUserID, payload.Cancel.Invitation.InviteeUserIDList) {
