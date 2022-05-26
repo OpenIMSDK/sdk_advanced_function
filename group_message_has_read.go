@@ -69,7 +69,7 @@ func (c *ChatHasRead) markGroupMessageAsRead(callback open_im_sdk_callback.Base,
 		}
 	}
 	if len(allUserMessage) == 0 {
-		common.CheckAnyErrCallback(callback, 201, errors.New("message has been marked read or sender is yourself"), operationID)
+		common.CheckAnyErrCallback(callback, 201, errors.New("message has been marked read or sender is yourself or notification message not support"), operationID)
 	}
 
 	for userID, list := range allUserMessage {
