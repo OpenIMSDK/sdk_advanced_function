@@ -78,7 +78,7 @@ func (s *LiveSignaling) doSignalPush(req *api.SignalReq, operationID string) {
 		log.Info(operationID, "recv signal push ", payload.Accept.String())
 		s.listener.OnInviteeAccepted(utils.StructToJsonString(payload.Accept))
 	case *api.SignalReq_Reject:
-		log.Info(operationID, "recv signal push ", payload.Reject.String())
+		log.Info(operationID, "recv signal push  ", payload.Reject.String())
 		s.listener.OnInviteeRejected(utils.StructToJsonString(payload.Reject))
 	//case *api.SignalReq_Cancel:
 	//	log.Info(operationID, "recv signal push ", payload.Cancel.String())
