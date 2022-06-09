@@ -172,10 +172,97 @@ func (c *ChatHasRead) DoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStru
 			msgRt.UserID = rd.SendID
 			msgRt.GroupID = rd.GroupID
 			msgRt.SessionType = constant.GroupChatType
-			msgRt.MsgIdList = msgIDListStatusOK
+			msgRt.MsgIDList = msgIDListStatusOK
 			groupMessageReceiptResp = append(groupMessageReceiptResp, msgRt)
 		}
 	}
+	if len(groupMessageReceiptResp) > 0 {
+		log.Info("internal", "OnRecvGroupReadReceipt: ", utils.StructToJsonString(groupMessageReceiptResp))
+		c.msgListener.OnRecvGroupReadReceipt(utils.StructToJsonString(groupMessageReceiptResp))
+	}
+}
+
+func (c *ChatHasRead) NewDoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStruct) {
+	var groupMessageReceiptResp []*sdk_struct.MessageReceipt
+	userMsgMap := make(map[string][]string)
+	var otherMsgIDList []string
+	var selfMsgIDList []string
+	for _, rd := range groupMsgReadList {
+		var list []string
+		err := json.Unmarshal([]byte(rd.Content), &list)
+		if err != nil {
+			log.Error("internal", "unmarshal failed, err : ", err.Error(), rd)
+			continue
+		}
+		if rd.SendID != c.loginUserID {
+			if oldMsgIDList, ok := userMsgMap[rd.SendID]; ok {
+				oldMsgIDList = append(oldMsgIDList, list...)
+				userMsgMap[rd.SendID] = oldMsgIDList
+			} else {
+				userMsgMap[rd.SendID] = list
+			}
+			otherMsgIDList = append(otherMsgIDList, list...)
+		} else {
+			selfMsgIDList = append(selfMsgIDList, list...)
+		}
+
+	}
+	newMsgID := utils.RemoveRepeatedStringInList(otherMsgIDList)
+	messages, err := c.GetMultipleMessage(newMsgID)
+	if err != nil {
+		log.Error("internal", "GetMessage err:", err.Error(), "ClientMsgID", otherMsgIDList, newMsgID)
+	}
+	for _, message := range messages {
+		t := new(db.LocalChatLog)
+		attachInfo := sdk_struct.AttachedInfoElem{}
+		_ = utils.JsonStringToStruct(message.AttachedInfo, &attachInfo)
+		var temp []*sdk_struct.MessageReceipt
+		for userID, list := range userMsgMap {
+			if utils.IsContain(message.ClientMsgID, list) {
+				msgRt := new(sdk_struct.MessageReceipt)
+				msgRt.UserID = userID
+				msgRt.GroupID = message.RecvID
+				msgRt.SessionType = constant.GroupChatType
+				msgRt.MsgIDList = []string{message.ClientMsgID}
+				msgRt.ContentType = constant.GroupHasReadReceipt
+				temp = append(temp, msgRt)
+				attachInfo.GroupHasReadInfo.HasReadUserIDList = utils.RemoveRepeatedStringInList(append(attachInfo.GroupHasReadInfo.HasReadUserIDList, userID))
+			}
+		}
+		attachInfo.GroupHasReadInfo.HasReadCount = int32(len(attachInfo.GroupHasReadInfo.HasReadUserIDList))
+		t.AttachedInfo = utils.StructToJsonString(attachInfo)
+		t.ClientMsgID = message.ClientMsgID
+		t.IsRead = true
+		err1 := c.UpdateMessage(t)
+		if err1 != nil {
+			log.Error("internal", "setGroupMessageHasReadByMsgID err:", err1, "ClientMsgID", t, message)
+			continue
+		}
+		groupMessageReceiptResp = append(groupMessageReceiptResp, temp...)
+	}
+	newMsgID = utils.RemoveRepeatedStringInList(selfMsgIDList)
+	selfMessages, err2 := c.GetMultipleMessage(newMsgID)
+	if err2 != nil {
+		log.Error("internal", "GetSelfSendMessage err:", err2.Error(), "ClientMsgID", selfMsgIDList, newMsgID)
+	}
+	for _, selfMessage := range selfMessages {
+		t := new(db.LocalChatLog)
+		t.ClientMsgID = selfMessage.ClientMsgID
+		t.IsRead = true
+		msgRt := new(sdk_struct.MessageReceipt)
+		msgRt.UserID = c.loginUserID
+		msgRt.GroupID = selfMessage.RecvID
+		msgRt.SessionType = constant.GroupChatType
+		msgRt.MsgIDList = []string{selfMessage.ClientMsgID}
+		msgRt.ContentType = constant.GroupHasReadReceipt
+		err = c.UpdateMessage(t)
+		if err != nil {
+			log.Error("internal", "setGroupMessageHasReadByMsgID err:", err, "ClientMsgID", t, selfMessage)
+			continue
+		}
+		groupMessageReceiptResp = append(groupMessageReceiptResp, msgRt)
+	}
+
 	if len(groupMessageReceiptResp) > 0 {
 		log.Info("internal", "OnRecvGroupReadReceipt: ", utils.StructToJsonString(groupMessageReceiptResp))
 		c.msgListener.OnRecvGroupReadReceipt(utils.StructToJsonString(groupMessageReceiptResp))
