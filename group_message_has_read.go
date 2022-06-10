@@ -10,7 +10,6 @@ import (
 	"open_im_sdk/pkg/common"
 	"open_im_sdk/pkg/constant"
 	"open_im_sdk/pkg/db"
-	"open_im_sdk/pkg/db/model_struct"
 
 	"open_im_sdk/pkg/log"
 	"open_im_sdk/pkg/server_api_params"
@@ -56,7 +55,7 @@ func (c *ChatHasRead) MarkGroupMessageAsRead(callback open_im_sdk_callback.Base,
 	}()
 }
 func (c *ChatHasRead) markGroupMessageAsRead(callback open_im_sdk_callback.Base, msgIDList MarkGroupMessageAsReadParams, groupID, operationID string) {
-	var localMessage model_struct.LocalChatLog
+	var localMessage db.LocalChatLog
 	allUserMessage := make(map[string][]string, 3)
 	messages, err := c.GetMultipleMessage(msgIDList)
 	common.CheckDBErrCallback(callback, err, operationID)
@@ -118,7 +117,7 @@ func (c *ChatHasRead) DoGroupMsgReadState(groupMsgReadList []*sdk_struct.MsgStru
 		var msgIDListStatusOK []string
 		if rd.SendID != c.loginUserID {
 			for _, message := range messages {
-				t := new(model_struct.LocalChatLog)
+				t := new(db.LocalChatLog)
 				attachInfo := sdk_struct.AttachedInfoElem{}
 				_ = utils.JsonStringToStruct(message.AttachedInfo, &attachInfo)
 				attachInfo.GroupHasReadInfo.HasReadUserIDList = utils.RemoveRepeatedStringInList(append(attachInfo.GroupHasReadInfo.HasReadUserIDList, rd.SendID))
@@ -247,7 +246,7 @@ func (c *ChatHasRead) internalSendMessage(callback open_im_sdk_callback.Base, s 
 	return &sendMsgResp, nil
 
 }
-func msgStructToLocalChatLog(dst *model_struct.LocalChatLog, src *sdk_struct.MsgStruct) {
+func msgStructToLocalChatLog(dst *db.LocalChatLog, src *sdk_struct.MsgStruct) {
 	copier.Copy(dst, src)
 	if src.SessionType == constant.GroupChatType {
 		dst.RecvID = src.GroupID
