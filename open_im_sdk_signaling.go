@@ -6,7 +6,6 @@ import (
 	"open_im_sdk/pkg/log"
 	api "open_im_sdk/pkg/server_api_params"
 	"open_im_sdk/pkg/utils"
-	"time"
 )
 
 func (s *LiveSignaling) SetDefaultReq(req *api.InvitationInfo) {
@@ -36,7 +35,7 @@ func (s *LiveSignaling) InviteInGroup(callback open_im_sdk_callback.Base, signal
 		s.SetDefaultReq(req.InviteInGroup.Invitation)
 		req.InviteInGroup.Invitation.InviterUserID = s.loginUserID
 		req.InviteInGroup.OpUserID = s.loginUserID
-		req.InviteInGroup.Invitation.InitiateTime = int32(time.Now().Unix())
+		req.InviteInGroup.Invitation.InitiateTime = int32(utils.GetCurrentTimestampByMill())
 		signalReq.Payload = req
 		req.InviteInGroup.Participant = s.getSelfParticipant(req.InviteInGroup.Invitation.GroupID, callback, operationID)
 		s.handleSignaling(&signalReq, callback, operationID)
@@ -62,7 +61,7 @@ func (s *LiveSignaling) Invite(callback open_im_sdk_callback.Base, signalInviteR
 		s.SetDefaultReq(req.Invite.Invitation)
 		req.Invite.Invitation.InviterUserID = s.loginUserID
 		req.Invite.OpUserID = s.loginUserID
-		req.Invite.Invitation.InitiateTime = int32(time.Now().Unix())
+		req.Invite.Invitation.InitiateTime = int32(utils.GetCurrentTimestampByMill())
 		signalReq.Payload = req
 		req.Invite.Participant = s.getSelfParticipant(req.Invite.Invitation.GroupID, callback, operationID)
 		s.handleSignaling(&signalReq, callback, operationID)
@@ -87,7 +86,7 @@ func (s *LiveSignaling) Accept(callback open_im_sdk_callback.Base, signalAcceptR
 		common.JsonUnmarshalCallback(signalAcceptReq, req.Accept, callback, operationID)
 		s.SetDefaultReq(req.Accept.Invitation)
 		req.Accept.OpUserID = s.loginUserID
-		req.Accept.Invitation.InitiateTime = int32(time.Now().Unix())
+		req.Accept.Invitation.InitiateTime = int32(utils.GetCurrentTimestampByMill())
 		signalReq.Payload = req
 		req.Accept.Participant = s.getSelfParticipant(req.Accept.Invitation.GroupID, callback, operationID)
 		req.Accept.OpUserPlatformID = s.platformID
@@ -113,7 +112,7 @@ func (s *LiveSignaling) Reject(callback open_im_sdk_callback.Base, signalRejectR
 		common.JsonUnmarshalCallback(signalRejectReq, req.Reject, callback, operationID)
 		s.SetDefaultReq(req.Reject.Invitation)
 		req.Reject.OpUserID = s.loginUserID
-		req.Reject.Invitation.InitiateTime = int32(time.Now().Unix())
+		req.Reject.Invitation.InitiateTime = int32(utils.GetCurrentTimestampByMill())
 		signalReq.Payload = req
 		req.Reject.OpUserPlatformID = s.platformID
 		req.Reject.Participant = s.getSelfParticipant(req.Reject.Invitation.GroupID, callback, operationID)
@@ -138,7 +137,7 @@ func (s *LiveSignaling) Cancel(callback open_im_sdk_callback.Base, signalCancelR
 		common.JsonUnmarshalCallback(signalCancelReq, req.Cancel, callback, operationID)
 		s.SetDefaultReq(req.Cancel.Invitation)
 		req.Cancel.OpUserID = s.loginUserID
-		req.Cancel.Invitation.InitiateTime = int32(time.Now().Unix())
+		req.Cancel.Invitation.InitiateTime = int32(utils.GetCurrentTimestampByMill())
 		signalReq.Payload = req
 		s.handleSignaling(&signalReq, callback, operationID)
 		log.NewInfo(operationID, fName, " callback finished")
@@ -161,7 +160,7 @@ func (s *LiveSignaling) HungUp(callback open_im_sdk_callback.Base, signalHungUpR
 		common.JsonUnmarshalCallback(signalHungUpReq, req.HungUp, callback, operationID)
 		s.SetDefaultReq(req.HungUp.Invitation)
 		req.HungUp.OpUserID = s.loginUserID
-		req.HungUp.Invitation.InitiateTime = int32(time.Now().Unix())
+		req.HungUp.Invitation.InitiateTime = int32(utils.GetCurrentTimestampByMill())
 		signalReq.Payload = req
 		s.handleSignaling(&signalReq, callback, operationID)
 		log.NewInfo(operationID, fName, " callback finished")
